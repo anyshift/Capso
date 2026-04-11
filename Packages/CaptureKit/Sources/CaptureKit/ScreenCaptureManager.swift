@@ -111,6 +111,56 @@ public enum ScreenCaptureManager {
         )
     }
 
+    // MARK: - Desktop Background Capture (for window shadow compositing)
+
+    /// Capture the desktop behind a window (excluding the window itself),
+    /// cropped to the window area with extra padding for the shadow region.
+    public static func captureDesktopBehindWindow(
+        windowID: CGWindowID,
+        padding: CGFloat
+    ) async throws -> CGImage {
+        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+
+        guard let scWindow = content.windows.first(where: { $0.windowID == windowID }) else {
+            throw CaptureError.windowNotFound(windowID)
+        }
+
+        let windowCenter = CGPoint(x: scWindow.frame.midX, y: scWindow.frame.midY)
+        guard let display = content.displays.first(where: { $0.frame.contains(windowCenter) })
+            ?? content.displays.first else {
+            throw CaptureError.noDisplayFound
+        }
+
+        // Capture the entire display EXCLUDING the target window.
+        let filter = SCContentFilter(display: display, excludingWindows: [scWindow])
+        let config = SCStreamConfiguration()
+        config.captureResolution = .best
+        config.showsCursor = false
+
+        // Crop to the window area + padding, in display-local coordinates.
+        var cropRect = CGRect(
+            x: scWindow.frame.origin.x - display.frame.origin.x - padding,
+            y: scWindow.frame.origin.y - display.frame.origin.y - padding,
+            width: scWindow.frame.width + padding * 2,
+            height: scWindow.frame.height + padding * 2
+        )
+        let displayBounds = CGRect(x: 0, y: 0, width: display.frame.width, height: display.frame.height)
+        cropRect = cropRect.intersection(displayBounds)
+        guard !cropRect.isEmpty else {
+            throw CaptureError.captureFailed("Window background is not visible")
+        }
+
+        config.sourceRect = cropRect
+        let scaleFactor = CGFloat(filter.pointPixelScale)
+        config.width = Int(cropRect.width * scaleFactor)
+        config.height = Int(cropRect.height * scaleFactor)
+
+        return try await SCScreenshotManager.captureImage(
+            contentFilter: filter,
+            configuration: config
+        )
+    }
+
     // MARK: - Area Capture
 
     public static func captureArea(rect: CGRect, displayID: CGDirectDisplayID = CGMainDisplayID()) async throws -> CaptureResult {

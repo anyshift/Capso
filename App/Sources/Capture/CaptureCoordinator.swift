@@ -1,5 +1,6 @@
 // App/Sources/Capture/CaptureCoordinator.swift
 import AppKit
+import CoreImage
 import Observation
 import AnnotationKit
 import CaptureKit
@@ -101,15 +102,155 @@ final class CaptureCoordinator {
     private func performWindowCapture(windowID: CGWindowID) {
         Task {
             do {
+                // Always capture without system shadow — we generate our own
+                // uniform padding + frosted glass backdrop when the setting is on.
                 let result = try await ScreenCaptureManager.captureWindow(
                     windowID: windowID,
-                    includeShadow: settings.captureWindowShadow
+                    includeShadow: false
                 )
+                if settings.captureWindowShadow {
+                    // Capture the real desktop behind the window (excluding the
+                    // window itself) for the frosted glass background.
+                    // Padding = 4% of the shorter side, plus room for shadow blur.
+                    let shorter = min(CGFloat(result.image.width), CGFloat(result.image.height))
+                    let padding = max(30, shorter * 0.04)
+                    let totalPadding = padding + 20 // extra for shadow spread
+                    let desktopBg = try await ScreenCaptureManager.captureDesktopBehindWindow(
+                        windowID: windowID,
+                        padding: totalPadding
+                    )
+                    if let composited = Self.compositeWindowWithFrostedGlass(
+                        windowImage: result.image,
+                        desktopBackground: desktopBg
+                    ) {
+                        let enhanced = CaptureResult(
+                            image: composited,
+                            mode: result.mode,
+                            captureRect: result.captureRect,
+                            windowName: result.windowName,
+                            appName: result.appName,
+                            timestamp: result.timestamp,
+                            displayID: result.displayID
+                        )
+                        handleCaptureResult(enhanced)
+                        return
+                    }
+                }
                 handleCaptureResult(result)
             } catch {
                 print("Window capture failed: \(error)")
             }
         }
+    }
+
+    /// Composite a window screenshot over a frosted-glass version of the real
+    /// desktop background, with uniform padding, rounded corners, and a soft
+    /// drop shadow.
+    private static func compositeWindowWithFrostedGlass(
+        windowImage: CGImage,
+        desktopBackground: CGImage
+    ) -> CGImage? {
+        let outW = desktopBackground.width
+        let outH = desktopBackground.height
+        guard outW > 0, outH > 0 else { return nil }
+
+        let imgW = CGFloat(windowImage.width)
+        let imgH = CGFloat(windowImage.height)
+        let canvasSize = CGSize(width: outW, height: outH)
+        let shadowRadius: CGFloat = 20
+        let cornerRadius: CGFloat = 12
+
+        // Centre the window in the canvas
+        let offsetX = (CGFloat(outW) - imgW) / 2
+        let offsetY = (CGFloat(outH) - imgH) / 2
+        let imageRect = CGRect(x: offsetX, y: offsetY, width: imgW, height: imgH)
+        let roundedPath = CGPath(roundedRect: imageRect, cornerWidth: cornerRadius, cornerHeight: cornerRadius, transform: nil)
+
+        // --- Blur the desktop background via CoreImage ---
+        guard let backdrop = frostedGlassBackdrop(from: desktopBackground, targetSize: canvasSize) else { return nil }
+
+        // --- Composite ---
+        guard let ctx = CGContext(
+            data: nil,
+            width: outW,
+            height: outH,
+            bitsPerComponent: 8,
+            bytesPerRow: outW * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        ) else { return nil }
+
+        let canvasRect = CGRect(x: 0, y: 0, width: outW, height: outH)
+
+        // 1. Draw frosted desktop backdrop
+        ctx.draw(backdrop, in: canvasRect)
+
+        // 2. Draw soft shadow — clip to OUTSIDE the rounded rect so the
+        //    white fill used to generate the shadow never bleeds into the
+        //    corner area (which would show as white corner artifacts).
+        ctx.saveGState()
+        let outerPath = CGMutablePath()
+        outerPath.addRect(canvasRect)
+        outerPath.addPath(roundedPath)
+        ctx.addPath(outerPath)
+        ctx.clip(using: .evenOdd)
+        ctx.setShadow(
+            offset: CGSize(width: 0, height: -4),
+            blur: shadowRadius,
+            color: NSColor.black.withAlphaComponent(0.25).cgColor
+        )
+        ctx.addPath(roundedPath)
+        ctx.setFillColor(NSColor.white.cgColor)
+        ctx.fillPath()
+        ctx.restoreGState()
+
+        // 3. Draw window clipped to rounded corners
+        ctx.saveGState()
+        ctx.addPath(roundedPath)
+        ctx.clip()
+        ctx.draw(windowImage, in: imageRect)
+        ctx.restoreGState()
+
+        return ctx.makeImage()
+    }
+
+    /// Blur and slightly saturate a desktop background image for the frosted
+    /// glass effect behind window captures.
+    private static func frostedGlassBackdrop(from image: CGImage, targetSize: CGSize) -> CGImage? {
+        let srcW = CGFloat(image.width)
+        let srcH = CGFloat(image.height)
+        guard srcW > 0, srcH > 0 else { return nil }
+
+        var ci = CIImage(cgImage: image)
+
+        // Aspect-fill to target size with slight overshoot to avoid blur edges.
+        let coverScale = max(targetSize.width / srcW, targetSize.height / srcH) * 1.05
+        ci = ci.transformed(by: CGAffineTransform(scaleX: coverScale, y: coverScale))
+        let tx = (targetSize.width - ci.extent.width) / 2 - ci.extent.minX
+        let ty = (targetSize.height - ci.extent.height) / 2 - ci.extent.minY
+        ci = ci.transformed(by: CGAffineTransform(translationX: tx, y: ty))
+
+        // Boost saturation slightly for richer colours.
+        if let f = CIFilter(name: "CIColorControls", parameters: [
+            kCIInputImageKey: ci,
+            kCIInputSaturationKey: 1.4,
+            kCIInputBrightnessKey: 0.0,
+            kCIInputContrastKey: 0.98,
+        ]), let out = f.outputImage {
+            ci = out
+        }
+
+        // Heavy Gaussian blur for frosted glass look.
+        let clamped = ci.clampedToExtent()
+        if let f = CIFilter(name: "CIGaussianBlur", parameters: [
+            kCIInputImageKey: clamped,
+            kCIInputRadiusKey: 80.0,
+        ]), let out = f.outputImage {
+            ci = out
+        }
+
+        let ciCtx = CIContext(options: nil)
+        return ciCtx.createCGImage(ci, from: CGRect(origin: .zero, size: targetSize))
     }
 
     private func dismissOverlay() {
