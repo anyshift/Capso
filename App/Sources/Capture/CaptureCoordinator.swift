@@ -23,6 +23,8 @@ final class CaptureCoordinator {
     private let maxQuickAccessStackSize = 5
     private var annotationWindow: AnnotationEditorWindow?
     private var pinnedControllers: [PinnedScreenshotController] = []
+    private var scrollCaptureController: ScrollCaptureController?
+    private var scrollCaptureOverlay: ScrollCaptureOverlay?
 
     var lastCaptureResult: CaptureResult?
     var ocrCoordinator: OCRCoordinator?
@@ -60,6 +62,13 @@ final class CaptureCoordinator {
         }
     }
 
+    func captureScrolling() {
+        // Use area selection overlay, then start scrolling capture on the selected region
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.showOverlay(mode: .area, isScrollingCapture: true)
+        }
+    }
+
     func captureWindow() {
         // Enumerate windows first, then show overlay in window selection mode
         Task {
@@ -82,13 +91,17 @@ final class CaptureCoordinator {
         }
     }
 
-    private func showOverlay(mode: CaptureOverlayMode = .area) {
+    private func showOverlay(mode: CaptureOverlayMode = .area, isScrollingCapture: Bool = false) {
         dismissOverlay()
         for screen in NSScreen.screens {
             let overlay = CaptureOverlayWindow(screen: screen)
             overlay.onAreaSelected = { [weak self] rect, screen in
                 self?.dismissOverlay()
-                self?.performAreaCapture(rect: rect, screen: screen)
+                if isScrollingCapture {
+                    self?.startScrollingCapture(rect: rect, screen: screen)
+                } else {
+                    self?.performAreaCapture(rect: rect, screen: screen)
+                }
             }
             overlay.onWindowSelected = { [weak self] windowID in
                 self?.dismissOverlay()
@@ -261,6 +274,100 @@ final class CaptureCoordinator {
             window.deactivate()
         }
         overlayWindows.removeAll()
+    }
+
+    // MARK: - Scrolling Capture
+
+    /// Saved capture rect (ScreenCaptureKit coordinates) for deferred start.
+    private var scrollCaptureRect: CGRect = .zero
+    private var scrollCaptureDisplayID: CGDirectDisplayID = 0
+
+    private func startScrollingCapture(rect: CGRect, screen: NSScreen) {
+        let screenFrame = screen.frame
+        // Convert from bottom-left (NSView) to top-left (ScreenCaptureKit) coordinates
+        scrollCaptureRect = CGRect(
+            x: rect.origin.x,
+            y: screenFrame.height - rect.origin.y - rect.height,
+            width: rect.width,
+            height: rect.height
+        )
+        scrollCaptureDisplayID = screen.displayID
+
+        // Show persistent overlay: selection border + controls + preview
+        let overlay = ScrollCaptureOverlay()
+        self.scrollCaptureOverlay = overlay
+
+        overlay.onStart = { [weak self] in
+            self?.beginScrollingCaptureLoop()
+        }
+
+        overlay.onDone = { [weak self] in
+            self?.finishScrollingCapture()
+        }
+
+        overlay.onCancel = { [weak self] in
+            self?.cancelScrollingCapture()
+        }
+
+        overlay.show(selectionRect: rect, screen: screen)
+    }
+
+    /// Called when user clicks Start — begins the capture loop.
+    private func beginScrollingCaptureLoop() {
+        let captureRect = scrollCaptureRect
+        let displayID = scrollCaptureDisplayID
+
+        let config = ScrollCaptureConfig(
+            captureRect: captureRect,
+            displayID: displayID,
+            mode: .manual
+        )
+        let controller = ScrollCaptureController(config: config)
+        self.scrollCaptureController = controller
+
+        scrollCaptureOverlay?.setCapturing(true)
+
+        controller.start(
+            onProgress: { [weak self] progress in
+                Task { @MainActor in
+                    if let mergedImage = controller.currentMergedImage {
+                        self?.scrollCaptureOverlay?.updatePreview(
+                            image: mergedImage,
+                            height: progress.currentHeight,
+                            frameCount: progress.frameCount
+                        )
+                    }
+                }
+            },
+            onComplete: { [weak self] image in
+                Task { @MainActor in
+                    self?.scrollCaptureOverlay?.close()
+                    self?.scrollCaptureOverlay = nil
+                    self?.scrollCaptureController = nil
+
+                    if let image {
+                        let result = CaptureResult(
+                            image: image,
+                            mode: .scrolling,
+                            captureRect: captureRect,
+                            displayID: displayID
+                        )
+                        self?.handleCaptureResult(result)
+                    }
+                }
+            }
+        )
+    }
+
+    private func finishScrollingCapture() {
+        scrollCaptureController?.stop()
+    }
+
+    private func cancelScrollingCapture() {
+        scrollCaptureController?.stop()
+        scrollCaptureOverlay?.close()
+        scrollCaptureOverlay = nil
+        scrollCaptureController = nil
     }
 
     private func performAreaCapture(rect: CGRect, screen: NSScreen) {

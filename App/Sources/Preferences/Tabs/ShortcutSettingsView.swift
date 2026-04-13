@@ -8,6 +8,7 @@ extension KeyboardShortcuts.Name {
     static let captureWindow = Self("captureWindow", default: .init(.three, modifiers: [.option, .shift]))
     static let captureText = Self("captureText", default: .init(.four, modifiers: [.option, .shift]))
     static let recordScreen = Self("recordScreen", default: .init(.five, modifiers: [.option, .shift]))
+    static let captureScrolling = Self("captureScrolling", default: .init(.six, modifiers: [.option, .shift]))
 }
 
 struct ShortcutSettingsView: View {
@@ -39,6 +40,7 @@ struct ShortcutSettingsView: View {
                     shortcutRow("Capture Fullscreen", name: .captureFullscreen, showDivider: true)
                     shortcutRow("Capture Window", name: .captureWindow, showDivider: true)
                     shortcutRow("Capture Text (OCR)", name: .captureText, showDivider: true)
+                    shortcutRow("Scrolling Capture", name: .captureScrolling, showDivider: true)
                 }
             }
 

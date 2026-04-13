@@ -9,6 +9,7 @@ public final class PermissionManager {
     public private(set) var screenRecordingGranted: Bool = false
     public private(set) var cameraGranted: Bool = false
     public private(set) var microphoneGranted: Bool = false
+    public private(set) var accessibilityGranted: Bool = false
 
     public init() {}
 
@@ -51,6 +52,20 @@ public final class PermissionManager {
         }
     }
 
+    // MARK: - Accessibility
+
+    public func checkAccessibilityPermission() {
+        accessibilityGranted = AXIsProcessTrusted()
+    }
+
+    /// Prompt the user to grant Accessibility permission.
+    /// Opens System Settings if not yet trusted.
+    public func requestAccessibilityPermission() {
+        // AXIsProcessTrustedWithOptions with prompt option
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        accessibilityGranted = AXIsProcessTrustedWithOptions(options)
+    }
+
     // MARK: - Open System Settings
 
     public func openScreenRecordingSettings() {
@@ -65,6 +80,11 @@ public final class PermissionManager {
 
     public func openMicrophoneSettings() {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!
+        NSWorkspace.shared.open(url)
+    }
+
+    public func openAccessibilitySettings() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
         NSWorkspace.shared.open(url)
     }
 }
