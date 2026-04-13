@@ -69,6 +69,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         KeyboardShortcuts.onKeyDown(for: .recordScreen) { [weak self] in
             self?.recordingCoordinator?.startRecordingFlow()
         }
+        KeyboardShortcuts.onKeyDown(for: .captureScrolling) { [weak self] in
+            self?.captureCoordinator?.captureScrolling()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

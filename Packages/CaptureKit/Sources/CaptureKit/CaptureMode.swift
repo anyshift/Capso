@@ -6,6 +6,7 @@ public enum CaptureMode: String, Sendable {
     case area
     case fullscreen
     case window
+    case scrolling
 }
 
 public struct CaptureResult: Sendable {

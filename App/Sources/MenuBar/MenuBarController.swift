@@ -54,6 +54,10 @@ final class MenuBarController: NSObject {
         captureText.setShortcut(for: .captureText)
         menu.addItem(captureText)
 
+        let captureScrolling = menuItem(String(localized: "Scrolling Capture"), action: #selector(captureScrolling))
+        captureScrolling.setShortcut(for: .captureScrolling)
+        menu.addItem(captureScrolling)
+
         menu.addItem(.separator())
 
         let recordScreen = menuItem(String(localized: "Record Screen"), action: #selector(recordScreen))
@@ -100,6 +104,10 @@ final class MenuBarController: NSObject {
         ocrCoordinator.startInstantOCR()
     }
 
+    @objc private func captureScrolling() {
+        captureCoordinator.captureScrolling()
+    }
+
     @objc private func recordScreen() {
         recordingCoordinator.startRecordingFlow()
     }
@@ -134,6 +142,7 @@ extension MenuBarController: NSMenuDelegate {
             case #selector(captureWindow): item.setShortcut(for: .captureWindow)
             case #selector(captureText): item.setShortcut(for: .captureText)
             case #selector(recordScreen): item.setShortcut(for: .recordScreen)
+            case #selector(captureScrolling): item.setShortcut(for: .captureScrolling)
             default: break
             }
         }
