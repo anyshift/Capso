@@ -37,7 +37,11 @@ final class CaptureCoordinator {
         // Small delay to let the menu bar dropdown fully dismiss
         // before showing the capture overlay
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-            self?.showOverlay()
+            if self?.settings.freezeScreen == true {
+                self?.showFrozenOverlay()
+            } else {
+                self?.showOverlay()
+            }
         }
     }
 
@@ -112,6 +116,59 @@ final class CaptureCoordinator {
             }
             overlay.activate(mode: mode)
             overlayWindows.append(overlay)
+        }
+    }
+
+    /// Freeze screen: capture each screen first, then show overlay with the frozen
+    /// image as background. User selects area on the frozen snapshot, and we crop
+    /// from the pre-captured image. This preserves dropdown menus/popups that would
+    /// otherwise dismiss when the overlay window appears.
+    private func showFrozenOverlay() {
+        dismissOverlay()
+        Task {
+            // Pre-capture all screens before showing any overlay
+            var frozenScreens: [(NSScreen, CGImage)] = []
+            for screen in NSScreen.screens {
+                do {
+                    let result = try await ScreenCaptureManager.captureFullscreen(displayID: screen.displayID)
+                    frozenScreens.append((screen, result.image))
+                } catch {
+                    print("Failed to freeze screen \(screen.displayID): \(error)")
+                }
+            }
+
+            // Now show overlays with frozen backgrounds
+            for (screen, frozenImage) in frozenScreens {
+                let overlay = CaptureOverlayWindow(screen: screen)
+                overlay.setFrozenBackground(frozenImage)
+                overlay.onAreaSelected = { [weak self] rect, screen in
+                    self?.dismissOverlay()
+                    // Crop from the frozen image instead of live capture
+                    let screenFrame = screen.frame
+                    let scaleX = CGFloat(frozenImage.width) / screenFrame.width
+                    let scaleY = CGFloat(frozenImage.height) / screenFrame.height
+                    let cropRect = CGRect(
+                        x: rect.origin.x * scaleX,
+                        y: (screenFrame.height - rect.origin.y - rect.height) * scaleY,
+                        width: rect.width * scaleX,
+                        height: rect.height * scaleY
+                    )
+                    if let cropped = frozenImage.cropping(to: cropRect) {
+                        let result = CaptureResult(
+                            image: cropped,
+                            mode: .area,
+                            captureRect: rect,
+                            displayID: screen.displayID
+                        )
+                        self?.handleCaptureResult(result)
+                    }
+                }
+                overlay.onCancelled = { [weak self] in
+                    self?.dismissOverlay()
+                }
+                overlay.activate(mode: .area)
+                overlayWindows.append(overlay)
+            }
         }
     }
 

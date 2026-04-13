@@ -27,6 +27,10 @@ final class CaptureOverlayView: NSView {
 
     private var cursorHidden = false
 
+    /// Pre-captured frozen screenshot. When set, drawn as the background
+    /// instead of being transparent, preserving dropdown menus/popups.
+    var frozenBackground: CGImage?
+
     // Overlay appearance
     private let overlayColor = NSColor.black.withAlphaComponent(0.3)
     private let selectionBorderColor = NSColor.white
@@ -105,7 +109,13 @@ final class CaptureOverlayView: NSView {
     }
 
     private func drawAreaMode(in context: CGContext) {
-        // Fill overlay
+        // Draw frozen background if available (freeze screen mode)
+        if let frozenBackground {
+            // CGContext is flipped (bottom-left origin), CGImage draws correctly
+            context.draw(frozenBackground, in: bounds)
+        }
+
+        // Fill overlay (semi-transparent dark layer on top)
         context.setFillColor(overlayColor.cgColor)
         context.fill(bounds)
 

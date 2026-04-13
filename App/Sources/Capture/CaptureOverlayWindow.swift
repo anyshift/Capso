@@ -56,6 +56,11 @@ final class CaptureOverlayWindow: NSPanel {
         overlayView.resetSelection()
     }
 
+    /// Set a pre-captured frozen screenshot as the overlay background.
+    func setFrozenBackground(_ image: CGImage) {
+        overlayView.frozenBackground = image
+    }
+
     func deactivate() {
         // Ensure cursor is restored even if the overlay view didn't do it
         overlayView.restoreCursorIfNeeded()
