@@ -34,6 +34,11 @@ final class CaptureOverlayView: NSView {
     // Overlay appearance
     private let overlayColor = NSColor.black.withAlphaComponent(0.3)
     private let selectionBorderColor = NSColor.white
+    // Use a neutral gray glass tint instead of pure white so the selected
+    // region still reads against bright backgrounds while remaining soft on
+    // dark ones.
+    private let selectionFillColor = NSColor(white: 0.78, alpha: 0.20)
+    private let selectionInnerStrokeColor = NSColor.white.withAlphaComponent(0.30)
     private let windowHighlightColor = NSColor.systemBlue.withAlphaComponent(0.3)
     private let windowBorderColor = NSColor.systemBlue
     private let dimensionFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
@@ -110,11 +115,26 @@ final class CaptureOverlayView: NSView {
 
     private func drawAreaMode(in context: CGContext) {
         // The overlay is fully transparent. Nothing outside the selection
-        // changes — no dark tint, no visual disruption. Only the selection
-        // area gets a subtle white highlight to indicate what's being captured.
+        // changes — no dark tint, no visual disruption. While dragging, the
+        // selection area gets a subtle frosted fill so the chosen region reads
+        // more like an active target instead of just a border.
 
         if isDragging {
             let selectionRect = self.selectionRect
+
+            // Subtle inner tint to make the capture target feel active.
+            // Keep it very light so the desktop content remains legible.
+            context.saveGState()
+            context.setFillColor(selectionFillColor.cgColor)
+            context.fill(selectionRect.insetBy(dx: 1, dy: 1))
+            context.restoreGState()
+
+            // Inner edge to help the fill read on bright backgrounds.
+            context.saveGState()
+            context.setStrokeColor(selectionInnerStrokeColor.cgColor)
+            context.setLineWidth(1.0)
+            context.stroke(selectionRect.insetBy(dx: 1, dy: 1))
+            context.restoreGState()
 
             // Selection border with shadow glow — visible on any background.
             // Dark shadow makes it clear on light backgrounds,
