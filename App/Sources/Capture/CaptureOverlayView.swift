@@ -34,8 +34,8 @@ final class CaptureOverlayView: NSView {
     // Overlay appearance
     private let overlayColor = NSColor.black.withAlphaComponent(0.3)
     private let selectionBorderColor = NSColor.white
-    private let selectionFillColor = NSColor.white.withAlphaComponent(0.08)
-    private let selectionInnerStrokeColor = NSColor.white.withAlphaComponent(0.16)
+    private let selectionFillColor = NSColor.white.withAlphaComponent(0.13)
+    private let selectionInnerStrokeColor = NSColor.white.withAlphaComponent(0.24)
     private let windowHighlightColor = NSColor.systemBlue.withAlphaComponent(0.3)
     private let windowBorderColor = NSColor.systemBlue
     private let dimensionFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
