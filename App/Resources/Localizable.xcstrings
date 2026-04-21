@@ -4764,6 +4764,159 @@
         "ko" : { "stringUnit" : { "state" : "translated", "value" : "스크린샷과 녹화가 여기에 표시됩니다" } },
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "截图和录屏记录将显示在这里" } }
       }
+    },
+    "Report a Bug" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "バグを報告" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "버그 신고" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "报告 Bug" } }
+      }
+    },
+    "Found something broken?" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "不具合を見つけましたか？" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "문제를 발견하셨나요?" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "发现问题了吗？" } }
+      }
+    },
+    "Request a Feature" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "機能をリクエスト" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "기능 요청" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请求新功能" } }
+      }
+    },
+    "Have an idea?" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "アイデアがありますか？" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "좋은 아이디어가 있으신가요?" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "有什么想法？" } }
+      }
+    },
+    "Source Code" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ソースコード" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "소스 코드" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "源代码" } }
+      }
+    },
+    "View on GitHub" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "GitHub で表示" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "GitHub에서 보기" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在 GitHub 上查看" } }
+      }
+    },
+    "Report" : {
+      "comment" : "Button label in About → Report a Bug row. Opens the bug report issue template.",
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "報告" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "신고" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "报告" } }
+      }
+    },
+    "Request" : {
+      "comment" : "Button label in About → Request a Feature row. Opens the feature request issue template.",
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "リクエスト" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "요청" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "请求" } }
+      }
+    },
+    "Open" : {
+      "comment" : "Button label in About → Source Code row. Opens the GitHub repository in the browser.",
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "開く" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "열기" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开" } }
+      }
+    },
+    "Screenshot History..." : {
+      "comment" : "Menu bar item that opens the screenshot history window. The ellipsis follows macOS convention for items that open a window.",
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "スクリーンショット履歴..." } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "스크린샷 기록..." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "截图历史..." } }
+      }
+    },
+    "Open Editor After Recording" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "録画後にエディタを開く" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "녹화 후 편집기 열기" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "录制后打开编辑器" } }
+      }
+    },
+    "Edit, trim, and add effects before exporting" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "書き出す前に編集・トリミング・エフェクトを追加" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "내보내기 전에 편집, 자르기 및 효과 추가" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "导出前编辑、裁剪并添加特效" } }
+      }
+    },
+    "Show Menu Bar Icon" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "メニューバーアイコンを表示" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "메뉴 바 아이콘 표시" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示菜单栏图标" } }
+      }
+    },
+    "Hide for a minimalist menu bar — shortcuts still work" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ミニマルなメニューバーのために非表示にする — ショートカットは引き続き使えます" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "미니멀한 메뉴 바를 위해 숨기기 — 단축키는 계속 작동합니다" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "隐藏以保持菜单栏简洁——快捷键仍可使用" } }
+      }
+    },
+    "Hide menu bar icon?" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "メニューバーアイコンを非表示にしますか？" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "메뉴 바 아이콘을 숨기시겠습니까?" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "隐藏菜单栏图标？" } }
+      }
+    },
+    "Hide Icon" : {
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "非表示にする" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "숨기기" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "隐藏图标" } }
+      }
+    },
+    "not set" : {
+      "comment" : "Shown in the hide-menu-bar-icon confirmation dialog when the user has not assigned a global shortcut for the listed action.",
+      "localizations" : {
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "未設定" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "설정되지 않음" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未设置" } }
+      }
+    },
+    "Capso will keep running, and your global shortcuts still work:\n\n• Capture Area: %@\n• Record Screen: %@\n• Screenshot History: %@\n\nTo open Preferences again, launch Capso from Spotlight, Launchpad, or Finder — even while it's still running." : {
+      "comment" : "Body text of the confirmation dialog when the user is about to hide the menu bar icon. Lists the three most useful global shortcuts (Capture Area, Record Screen, Screenshot History) and tells the user how to reopen Preferences afterwards.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capso will keep running, and your global shortcuts still work:\n\n• Capture Area: %1$@\n• Record Screen: %2$@\n• Screenshot History: %3$@\n\nTo open Preferences again, launch Capso from Spotlight, Launchpad, or Finder — even while it's still running."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capsoは動作し続け、グローバルショートカットも引き続き使えます:\n\n• エリアをキャプチャ: %1$@\n• 画面を録画: %2$@\n• スクリーンショット履歴: %3$@\n\n設定を再び開くには、Spotlight、Launchpad、Finder から Capso を起動してください — 起動中でも開きます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capso는 계속 실행되며, 전역 단축키도 정상적으로 작동합니다:\n\n• 영역 캡처: %1$@\n• 화면 녹화: %2$@\n• 스크린샷 기록: %3$@\n\n환경설정을 다시 열려면 Spotlight, Launchpad 또는 Finder에서 Capso를 실행하세요 — 실행 중이어도 열립니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capso 会继续运行,全局快捷键仍可正常使用:\n\n• 截取区域: %1$@\n• 录制屏幕: %2$@\n• 截图历史: %3$@\n\n要再次打开偏好设置,从 Spotlight、Launchpad 或 Finder 启动 Capso 即可——即使它正在运行也可以。"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
