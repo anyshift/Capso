@@ -114,6 +114,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         KeyboardShortcuts.onKeyDown(for: .captureScrolling) { [weak self] in
             self?.captureCoordinator?.captureScrolling()
         }
+        KeyboardShortcuts.onKeyDown(for: .selfTimerCapture) { [weak self] in
+            self?.captureCoordinator?.captureAreaWithSelfTimer()
+        }
         KeyboardShortcuts.onKeyDown(for: .captureAreaToClipboard) { [weak self] in
             self?.captureCoordinator?.captureAreaToClipboard()
         }

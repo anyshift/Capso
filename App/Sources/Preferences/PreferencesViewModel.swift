@@ -127,6 +127,30 @@ final class PreferencesViewModel {
         }
     }
 
+    // MARK: Self-Timer
+    var selfTimerDurationSeconds: Int {
+        get {
+            access(keyPath: \.selfTimerDurationSeconds)
+            return settings.selfTimerDurationSeconds
+        }
+        set {
+            withMutation(keyPath: \.selfTimerDurationSeconds) {
+                settings.selfTimerDurationSeconds = newValue
+            }
+        }
+    }
+    var selfTimerPlayTickSound: Bool {
+        get {
+            access(keyPath: \.selfTimerPlayTickSound)
+            return settings.selfTimerPlayTickSound
+        }
+        set {
+            withMutation(keyPath: \.selfTimerPlayTickSound) {
+                settings.selfTimerPlayTickSound = newValue
+            }
+        }
+    }
+
     // MARK: Capture Presets
     var capturePresetsEnabled: Bool {
         get {

@@ -146,4 +146,89 @@ struct AppSettingsTests {
         let settings = AppSettings(defaults: defaults)
         #expect(settings.translationAutoDismissDelay == 10)
     }
+
+    // MARK: Self-Timer
+
+    @Test("Default self-timer duration is 5 seconds")
+    func defaultSelfTimerDuration() {
+        let suite = "test.selfTimerDuration.default"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let settings = AppSettings(defaults: defaults)
+        #expect(settings.selfTimerDurationSeconds == 5)
+    }
+
+    @Test("Self-timer duration persists across instances")
+    func selfTimerDurationPersists() {
+        let suite = "test.selfTimerDuration.persists"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let first = AppSettings(defaults: defaults)
+        first.selfTimerDurationSeconds = 7
+        let second = AppSettings(defaults: defaults)
+        #expect(second.selfTimerDurationSeconds == 7)
+    }
+
+    @Test("Self-timer duration clamps below the lower bound")
+    func selfTimerDurationClampsLow() {
+        let suite = "test.selfTimerDuration.clampLow"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let settings = AppSettings(defaults: defaults)
+        settings.selfTimerDurationSeconds = 0
+        #expect(settings.selfTimerDurationSeconds == AppSettings.selfTimerDurationRange.lowerBound)
+        settings.selfTimerDurationSeconds = -10
+        #expect(settings.selfTimerDurationSeconds == AppSettings.selfTimerDurationRange.lowerBound)
+    }
+
+    @Test("Self-timer duration clamps above the upper bound")
+    func selfTimerDurationClampsHigh() {
+        let suite = "test.selfTimerDuration.clampHigh"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let settings = AppSettings(defaults: defaults)
+        settings.selfTimerDurationSeconds = 1000
+        #expect(settings.selfTimerDurationSeconds == AppSettings.selfTimerDurationRange.upperBound)
+    }
+
+    @Test("Tick sound defaults to enabled")
+    func defaultSelfTimerTickSound() {
+        let suite = "test.selfTimerPlayTickSound.default"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let settings = AppSettings(defaults: defaults)
+        #expect(settings.selfTimerPlayTickSound == true)
+    }
+
+    @Test("Tick sound persists when disabled")
+    func selfTimerTickSoundPersists() {
+        let suite = "test.selfTimerPlayTickSound.persists"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let first = AppSettings(defaults: defaults)
+        first.selfTimerPlayTickSound = false
+        let second = AppSettings(defaults: defaults)
+        #expect(second.selfTimerPlayTickSound == false)
+    }
+
+    @Test("Self-timer HUD position defaults to nil")
+    func defaultSelfTimerHUDPosition() {
+        let suite = "test.selfTimerHUDPosition.default"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let settings = AppSettings(defaults: defaults)
+        #expect(settings.selfTimerHUDPosition == nil)
+    }
+
+    @Test("Self-timer HUD position round-trips and clears")
+    func selfTimerHUDPositionRoundTrip() {
+        let suite = "test.selfTimerHUDPosition.roundtrip"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let settings = AppSettings(defaults: defaults)
+        settings.selfTimerHUDPosition = CGPoint(x: 412.5, y: 88.0)
+        #expect(settings.selfTimerHUDPosition == CGPoint(x: 412.5, y: 88.0))
+        settings.selfTimerHUDPosition = nil
+        #expect(settings.selfTimerHUDPosition == nil)
+    }
 }

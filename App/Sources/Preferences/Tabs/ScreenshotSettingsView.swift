@@ -49,6 +49,41 @@ struct ScreenshotSettingsView: View {
                 }
             }
 
+            SettingGroup(title: "Self-Timer") {
+                SettingCard {
+                    SettingRow(
+                        label: "Default Duration",
+                        sublabel: "Delay before the screenshot fires"
+                    ) {
+                        HStack(spacing: 8) {
+                            Text("\(viewModel.selfTimerDurationSeconds)s")
+                                .font(.system(size: 13, weight: .medium).monospacedDigit())
+                                .frame(minWidth: 32, alignment: .trailing)
+                            Stepper(
+                                "",
+                                value: $viewModel.selfTimerDurationSeconds,
+                                in: AppSettings.selfTimerDurationRange
+                            )
+                            .labelsHidden()
+                        }
+                    }
+                    SettingRow(
+                        label: "Tick Sound",
+                        sublabel: "Play a sound on each second of the countdown",
+                        showDivider: true
+                    ) {
+                        Toggle("", isOn: $viewModel.selfTimerPlayTickSound)
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                    }
+                }
+
+                Text("Useful for capturing menus, hover states, and other UI that disappears the moment you move the mouse.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+            }
+
             SettingGroup(title: "Capture Presets") {
                 SettingCard {
                     SettingRow(
