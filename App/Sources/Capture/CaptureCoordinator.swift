@@ -29,6 +29,7 @@ final class CaptureCoordinator {
     private var freezeWindows: [NSWindow] = []
     private var scrollCaptureController: ScrollCaptureController?
     private var scrollCaptureOverlay: ScrollCaptureOverlay?
+    private var selfTimerHUD: SelfTimerHUD?
 
     var lastCaptureResult: CaptureResult?
     var ocrCoordinator: OCRCoordinator?
@@ -129,6 +130,16 @@ final class CaptureCoordinator {
         }
     }
 
+    /// Self-timer area capture: pick area, show countdown HUD, then capture.
+    /// Uses `settings.selfTimerDurationSeconds` as the delay.
+    func captureAreaWithSelfTimer() {
+        pendingAction = .default
+        let seconds = settings.selfTimerDurationSeconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.showOverlay(mode: .area, selfTimerSeconds: seconds)
+        }
+    }
+
     func captureWindow() {
         // Enumerate windows first, then show overlay in window selection mode
         Task {
@@ -151,7 +162,11 @@ final class CaptureCoordinator {
         }
     }
 
-    private func showOverlay(mode: CaptureOverlayMode = .area, isScrollingCapture: Bool = false) {
+    private func showOverlay(
+        mode: CaptureOverlayMode = .area,
+        isScrollingCapture: Bool = false,
+        selfTimerSeconds: Int? = nil
+    ) {
         dismissOverlay()
         for screen in NSScreen.screens {
             let overlay = CaptureOverlayWindow(screen: screen, settings: settings)
@@ -159,6 +174,8 @@ final class CaptureCoordinator {
                 self?.dismissOverlay()
                 if isScrollingCapture {
                     self?.startScrollingCapture(rect: rect, screen: screen)
+                } else if let seconds = selfTimerSeconds {
+                    self?.runSelfTimerThenCapture(rect: rect, screen: screen, seconds: seconds)
                 } else {
                     self?.performAreaCapture(rect: rect, screen: screen)
                 }
@@ -173,6 +190,36 @@ final class CaptureCoordinator {
             overlay.activate(mode: mode)
             overlayWindows.append(overlay)
         }
+    }
+
+    /// Show the Self-Timer HUD on the screen the user just selected an area
+    /// on, then fire the capture once the countdown finishes. Esc / click on
+    /// the HUD cancels the capture entirely (no fallback capture).
+    private func runSelfTimerThenCapture(rect: CGRect, screen: NSScreen, seconds: Int) {
+        // Tear down any stale HUD first (defensive — there shouldn't be one).
+        selfTimerHUD?.dismiss()
+
+        let hud = SelfTimerHUD()
+        selfTimerHUD = hud
+        hud.show(
+            on: screen,
+            selectionRect: rect,
+            duration: seconds,
+            playTickSound: settings.selfTimerPlayTickSound,
+            savedPosition: settings.selfTimerHUDPosition,
+            persistPosition: { [weak self] origin in
+                self?.settings.selfTimerHUDPosition = origin
+            },
+            onComplete: { [weak self] in
+                self?.selfTimerHUD = nil
+                self?.performAreaCapture(rect: rect, screen: screen)
+            },
+            onCancel: { [weak self] in
+                self?.selfTimerHUD = nil
+                // Reset pendingAction; the user explicitly bailed.
+                self?.pendingAction = .default
+            }
+        )
     }
 
     /// Two-window freeze architecture for preserving popups/dropdowns:

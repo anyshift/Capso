@@ -246,6 +246,54 @@ public final class AppSettings: @unchecked Sendable {
         set { defaults.set(newValue, forKey: "rememberLastCaptureArea") }
     }
 
+    // MARK: Self-Timer
+
+    /// Allowed range for the self-timer duration in seconds. Anything stored
+    /// outside this range is clamped on read so the UI / countdown loop
+    /// never has to defend against zero or absurd values.
+    public static let selfTimerDurationRange: ClosedRange<Int> = 1...60
+
+    /// Default countdown duration in seconds. The setter clamps into
+    /// `selfTimerDurationRange`. Stored as `Int` (raw seconds) so users can
+    /// pick any value in range — the previous 3/5/10 enum values still
+    /// round-trip cleanly because they're plain ints.
+    public var selfTimerDurationSeconds: Int {
+        get {
+            let raw = defaults.object(forKey: "selfTimerDuration") as? Int ?? 5
+            return min(max(raw, Self.selfTimerDurationRange.lowerBound), Self.selfTimerDurationRange.upperBound)
+        }
+        set {
+            let clamped = min(max(newValue, Self.selfTimerDurationRange.lowerBound), Self.selfTimerDurationRange.upperBound)
+            defaults.set(clamped, forKey: "selfTimerDuration")
+        }
+    }
+
+    /// Play a per-second tick sound during the self-timer countdown.
+    /// Independent of `playShutterSound`: some users want the shutter
+    /// sound but find the ticking distracting (or vice versa).
+    public var selfTimerPlayTickSound: Bool {
+        get { defaults.object(forKey: "selfTimerPlayTickSound") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "selfTimerPlayTickSound") }
+    }
+
+    /// Last screen position of the Self-Timer HUD. `nil` means "use the
+    /// default top-center placement of the active screen". Persisted as
+    /// `[Double]` (x, y) — only written when the user drags the HUD.
+    public var selfTimerHUDPosition: CGPoint? {
+        get {
+            guard let arr = defaults.array(forKey: "selfTimerHUDPosition") as? [Double],
+                  arr.count == 2 else { return nil }
+            return CGPoint(x: arr[0], y: arr[1])
+        }
+        set {
+            if let p = newValue {
+                defaults.set([Double(p.x), Double(p.y)], forKey: "selfTimerHUDPosition")
+            } else {
+                defaults.removeObject(forKey: "selfTimerHUDPosition")
+            }
+        }
+    }
+
     // MARK: Capture Presets
 
     public var capturePresetsEnabled: Bool {

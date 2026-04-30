@@ -97,6 +97,9 @@ final class MenuBarController: NSObject {
         captureScrolling.setShortcut(for: .captureScrolling)
         menu.addItem(captureScrolling)
 
+        let selfTimer = selfTimerMenuItem()
+        menu.addItem(selfTimer)
+
         menu.addItem(.separator())
 
         let recordScreen = menuItem(String(localized: "Record Screen"), action: #selector(recordScreen))
@@ -125,6 +128,34 @@ final class MenuBarController: NSObject {
         return item
     }
 
+    /// Self-Timer menu row. Title is "Self-Timer" with the saved duration
+    /// rendered in tertiary color as a trailing tag (e.g. "Self-Timer  5s").
+    /// Refreshed in `menuWillOpen` so the tag stays in sync with Preferences.
+    private func selfTimerMenuItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "", action: #selector(captureSelfTimer), keyEquivalent: "")
+        item.target = self
+        refreshSelfTimerTitle(item)
+        item.setShortcut(for: .selfTimerCapture)
+        return item
+    }
+
+    private func refreshSelfTimerTitle(_ item: NSMenuItem) {
+        let label = String(localized: "Self-Timer")
+        let duration = "\(settings.selfTimerDurationSeconds)s"
+        let attributed = NSMutableAttributedString(
+            string: label,
+            attributes: [.font: NSFont.menuFont(ofSize: 0)]
+        )
+        attributed.append(NSAttributedString(
+            string: "   \(duration)",
+            attributes: [
+                .font: NSFont.menuFont(ofSize: 0),
+                .foregroundColor: NSColor.tertiaryLabelColor,
+            ]
+        ))
+        item.attributedTitle = attributed
+    }
+
     @objc private func captureArea() {
         captureCoordinator.captureArea()
     }
@@ -147,6 +178,10 @@ final class MenuBarController: NSObject {
 
     @objc private func captureScrolling() {
         captureCoordinator.captureScrolling()
+    }
+
+    @objc private func captureSelfTimer() {
+        captureCoordinator.captureAreaWithSelfTimer()
     }
 
     @objc private func recordScreen() {
@@ -185,6 +220,9 @@ extension MenuBarController: NSMenuDelegate {
             case #selector(captureAndTranslate): item.setShortcut(for: .captureAndTranslate)
             case #selector(recordScreen): item.setShortcut(for: .recordScreen)
             case #selector(captureScrolling): item.setShortcut(for: .captureScrolling)
+            case #selector(captureSelfTimer):
+                item.setShortcut(for: .selfTimerCapture)
+                refreshSelfTimerTitle(item)
             case #selector(openHistory): item.setShortcut(for: .screenshotHistory)
             default: break
             }
