@@ -213,17 +213,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         guard !remainder.isEmpty else { return }
 
-        guard settings.automationURLsEnabled else {
-            logAutomationURL("Ignored request because Automation URLs are disabled")
+        guard let actionURL = remainder.first(where: { AutomationURLAction(url: $0) != nil }),
+              let action = AutomationURLAction(url: actionURL) else {
+            logAutomationURL("Ignored unsupported request")
             return
         }
-        guard let action = remainder.lazy.compactMap(AutomationURLAction.init(url:)).first else {
-            logAutomationURL("Ignored unsupported request")
+        guard settings.automationURLsEnabled || askToAllowAutomationURLs(for: actionURL) else {
+            logAutomationURL("Ignored request because Automation URLs are disabled")
             return
         }
 
         automationURLRequestBuffer.enqueue(action)
         performPendingAutomationURLAction()
+    }
+
+    /// Asks once whether other apps may control Capso. Returns whether to run the command.
+    private func askToAllowAutomationURLs(for url: URL) -> Bool {
+        guard !settings.automationURLsAsked else { return false }
+        settings.automationURLsAsked = true
+
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(localized: "Another app wants to control Capso")
+        alert.informativeText = String(localized: "It sent this command:\n\(url.absoluteString)\n\nAllow other apps to start captures and recordings with Capso? You can change this later in Settings → General.")
+        alert.addButton(withTitle: String(localized: "Allow"))
+        alert.addButton(withTitle: String(localized: "Don't Allow"))
+        let allowed = alert.runModal() == .alertFirstButtonReturn
+        settings.automationURLsEnabled = allowed
+        return allowed
     }
 
     private func performPendingImageFileOpen() {
@@ -246,6 +264,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .captureArea:
             captureCoordinator.captureArea()
         case .captureFullscreen:
+            captureCoordinator.markNextCaptureAsAutomated()
             captureCoordinator.captureFullscreen()
         case .captureWindow:
             captureCoordinator.captureWindow()
@@ -256,6 +275,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .captureSelfTimer:
             captureCoordinator.captureAreaWithSelfTimer()
         case .captureLastArea:
+            captureCoordinator.markNextCaptureAsAutomated()
             captureCoordinator.replayLastCapture()
         case .captureAreaToClipboard:
             captureCoordinator.captureAreaToClipboard()
