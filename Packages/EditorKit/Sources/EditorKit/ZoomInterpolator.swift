@@ -9,9 +9,13 @@ public struct ZoomInterpolator: Sendable {
 
     // MARK: - Constants
 
-    private static let zoomInDuration: TimeInterval = 0.8
-    private static let zoomOutDuration: TimeInterval = 0.6
+    /// Upper bound for each zoom-in / zoom-out ramp; short segments use half their length.
+    static let rampDuration: TimeInterval = 0.75
+    /// A segment starting within this long after the previous one ends is treated as back-to-back.
+    private static let adjacencyTolerance: TimeInterval = 0.05
     private static let edgeSnapRatio: Double = 0.25
+    /// No zoom, focused on the centre — the state ramps start from and return to.
+    private static let unzoomed = FrameTransform(scale: 1, translateX: 0.5, translateY: 0.5)
 
     // MARK: - Stored Properties
 
@@ -23,7 +27,7 @@ public struct ZoomInterpolator: Sendable {
     // MARK: - Init
 
     public init(segments: [ZoomSegment], frameSize: CGSize) {
-        self.segments = segments.sorted { $0.startTime < $1.startTime }
+        self.segments = Self.resolvingOverlaps(segments)
         self.frameWidth = frameSize.width
         self.frameHeight = frameSize.height
     }
@@ -31,6 +35,10 @@ public struct ZoomInterpolator: Sendable {
     // MARK: - Public API
 
     /// Computes the `FrameTransform` at the given `time`.
+    ///
+    /// Both ramps happen inside the segment. Back-to-back segments move
+    /// straight from one zoom to the next without returning to 1×, and a
+    /// segment starting at the very beginning starts fully zoomed.
     ///
     /// - Parameters:
     ///   - time: The playback timestamp in seconds.
@@ -41,11 +49,70 @@ public struct ZoomInterpolator: Sendable {
         at time: TimeInterval,
         cursorPosition: (x: Double, y: Double)?
     ) -> FrameTransform {
-        guard let (segment, strength) = findActiveSegment(at: time), strength > 0 else {
+        guard let index = segments.indices.last(where: {
+            segments[$0].startTime <= time && time < effectiveEnd(ofSegmentAt: $0)
+        }) else {
             return .identity
         }
+        let segment = segments[index]
+        let ramp = min(Self.rampDuration, (segment.endTime - segment.startTime) / 2)
+        let target = fullTransform(of: segment, cursorPosition: cursorPosition)
 
-        // Determine raw focus point
+        let previous = index > 0 ? segments[index - 1] : nil
+        let followsPrevious = index > 0 && connects(index - 1)
+        let hasNext = connects(index)
+
+        if ramp > 0, time < segment.startTime + ramp, followsPrevious || segment.startTime > 0 {
+            let from = followsPrevious
+                ? fullTransform(of: previous!, cursorPosition: cursorPosition)
+                : Self.unzoomed
+            return blend(from: from, to: target, progress: easeInOutCubic((time - segment.startTime) / ramp))
+        }
+        if ramp > 0, !hasNext, time > segment.endTime - ramp {
+            return blend(from: target, to: Self.unzoomed, progress: easeInOutCubic((time - (segment.endTime - ramp)) / ramp))
+        }
+        return target
+    }
+
+    // MARK: - Internal Helpers
+
+    /// Where segments overlap, the later-starting one wins: earlier segments are
+    /// cut into the parts before and after it. The result is sorted and disjoint.
+    static func resolvingOverlaps(_ segments: [ZoomSegment]) -> [ZoomSegment] {
+        var resolved: [ZoomSegment] = []
+        for segment in segments.sorted(by: { $0.startTime < $1.startTime }) {
+            resolved = resolved.flatMap { earlier -> [ZoomSegment] in
+                guard earlier.startTime < segment.endTime, segment.startTime < earlier.endTime else { return [earlier] }
+                var pieces: [ZoomSegment] = []
+                if earlier.startTime < segment.startTime {
+                    var before = earlier
+                    before.endTime = segment.startTime
+                    pieces.append(before)
+                }
+                if segment.endTime < earlier.endTime {
+                    var after = earlier
+                    after.startTime = segment.endTime
+                    pieces.append(after)
+                }
+                return pieces
+            }
+            resolved.append(segment)
+        }
+        return resolved.sorted { $0.startTime < $1.startTime }
+    }
+
+    /// Whether the segment after `index` starts right when (or just after) the one at `index` ends.
+    private func connects(_ index: Int) -> Bool {
+        index + 1 < segments.count
+            && segments[index + 1].startTime <= segments[index].endTime + Self.adjacencyTolerance
+    }
+
+    /// A connected segment stays in charge until the next one starts, so tiny gaps don't flash to 1×.
+    private func effectiveEnd(ofSegmentAt index: Int) -> TimeInterval {
+        connects(index) ? max(segments[index].endTime, segments[index + 1].startTime) : segments[index].endTime
+    }
+
+    private func fullTransform(of segment: ZoomSegment, cursorPosition: (x: Double, y: Double)?) -> FrameTransform {
         let rawFocus: (x: Double, y: Double)
         switch segment.focusMode {
         case .followCursor:
@@ -53,56 +120,22 @@ public struct ZoomInterpolator: Sendable {
         case .manual(let x, let y):
             rawFocus = (x: x, y: y)
         }
-
-        // Effective zoom level with transition strength applied
-        let effectiveZoom = 1.0 + (segment.zoomLevel - 1.0) * strength
-
-        // Apply edge snapping so the viewport never exceeds frame bounds
-        let focus = edgeSnap(cursor: rawFocus, zoomLevel: effectiveZoom)
-
         // translateX/Y carry the normalized focus point (0-1) so the compositor
         // can build the correct scale-around-focus affine transform.
-        return FrameTransform(scale: effectiveZoom, translateX: focus.x, translateY: focus.y)
+        let focus = edgeSnap(cursor: rawFocus, zoomLevel: segment.zoomLevel)
+        return FrameTransform(scale: segment.zoomLevel, translateX: focus.x, translateY: focus.y)
     }
 
-    // MARK: - Internal Helpers
-
-    /// Returns the active segment and its current strength [0, 1] at `time`,
-    /// or `nil` when no segment is active.
-    func findActiveSegment(at time: TimeInterval) -> (segment: ZoomSegment, strength: Double)? {
-        for segment in segments {
-            let zoomInEnd = segment.startTime + Self.zoomInDuration
-            let zoomOutStart = segment.endTime
-            let zoomOutEnd = segment.endTime + Self.zoomOutDuration
-
-            if time < segment.startTime {
-                // Before this segment — segments are sorted, so no later one can match either…
-                // Actually a later segment could still match, so just continue.
-                continue
-            }
-
-            if time >= segment.startTime && time < zoomInEnd {
-                // Zoom-in phase
-                let progress = (time - segment.startTime) / Self.zoomInDuration
-                let strength = easeOutCubic(t: progress)
-                return (segment, strength)
-            }
-
-            if time >= zoomInEnd && time < zoomOutStart {
-                // Hold phase (fully zoomed)
-                return (segment, 1.0)
-            }
-
-            if time >= zoomOutStart && time < zoomOutEnd {
-                // Zoom-out phase
-                let progress = (time - zoomOutStart) / Self.zoomOutDuration
-                let strength = 1.0 - easeOutCubic(t: progress)
-                return (segment, strength)
-            }
-
-            // time >= zoomOutEnd — past this segment, keep iterating
-        }
-        return nil
+    /// Interpolates scale and focus together, keeping the viewport inside the frame.
+    private func blend(from: FrameTransform, to: FrameTransform, progress: Double) -> FrameTransform {
+        let scale = from.scale + (to.scale - from.scale) * progress
+        let half = 0.5 / scale
+        func clamp(_ v: Double) -> Double { min(max(v, half), 1 - half) }
+        return FrameTransform(
+            scale: scale,
+            translateX: clamp(from.translateX + (to.translateX - from.translateX) * progress),
+            translateY: clamp(from.translateY + (to.translateY - from.translateY) * progress)
+        )
     }
 
     /// Clamps a normalized focus coordinate so the zoomed viewport stays within
@@ -135,10 +168,9 @@ public struct ZoomInterpolator: Sendable {
         }
     }
 
-    /// Ease-out cubic: fast start, decelerates to target.
-    /// `p = 1 - t; return 1 - p*p*p`
-    private func easeOutCubic(t: Double) -> Double {
-        let p = 1.0 - t
-        return 1.0 - p * p * p
+    /// Slow start and slow finish.
+    private func easeInOutCubic(_ t: Double) -> Double {
+        let t = min(max(t, 0), 1)
+        return t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2
     }
 }
