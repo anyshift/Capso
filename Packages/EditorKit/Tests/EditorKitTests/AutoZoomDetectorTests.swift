@@ -294,4 +294,102 @@ struct AutoZoomDetectorTests {
             Issue.record("expected .manual focus mode")
         }
     }
+
+    // MARK: - Click bursts and typing
+
+    private func keys(from start: TimeInterval, count: Int, every gap: TimeInterval, x: Double = 0.4, y: Double = 0.6) -> [CursorEvent] {
+        (0..<count).map { CursorEvent(timestamp: start + Double($0) * gap, x: x, y: y, type: .keyDown) }
+    }
+
+    @Test("A lone click still zooms 1.5x")
+    func loneClick() {
+        let out = AutoZoomDetector.detect(events: [click(at: 5)], duration: 12)
+        #expect(out.count == 1)
+        #expect(out[0].zoomLevel == 1.5)
+    }
+
+    @Test("A quick burst of nearby clicks becomes one longer, deeper zoom")
+    func denseBurst() {
+        let out = AutoZoomDetector.detect(
+            events: [click(at: 3.0, x: 0.30), click(at: 3.3, x: 0.32), click(at: 3.6, x: 0.31), click(at: 5.0, x: 0.33)],
+            duration: 15
+        )
+        #expect(out.count == 1)
+        #expect(out[0].startTime == 2.0)
+        #expect(out[0].endTime == 7.0)
+        #expect(out[0].zoomLevel == 2.0)
+        if case .manual(let x, _) = out[0].focusMode {
+            #expect(abs(x - 0.315) < 0.001)
+        }
+    }
+
+    @Test("A slow burst stays at 1.5x")
+    func slowBurst() {
+        let out = AutoZoomDetector.detect(events: [click(at: 3.0), click(at: 5.0)], duration: 15)
+        #expect(out.count == 1)
+        #expect(out[0].endTime == 7.0)
+        #expect(out[0].zoomLevel == 1.5)
+    }
+
+    @Test("Typing four or more keys in a row zooms around the run")
+    func typingRun() {
+        let out = AutoZoomDetector.detect(events: keys(from: 4.0, count: 6, every: 0.3), duration: 15)
+        #expect(out.count == 1)
+        #expect(abs(out[0].startTime - 3.7) < 1e-9)
+        #expect(abs(out[0].endTime - 6.3) < 1e-9)
+        #expect(out[0].zoomLevel == 1.5)
+    }
+
+    @Test("Too few or too slow key presses don't zoom")
+    func shortOrSlowTyping() {
+        #expect(AutoZoomDetector.detect(events: keys(from: 4.0, count: 3, every: 0.3), duration: 15).isEmpty)
+        #expect(AutoZoomDetector.detect(events: keys(from: 4.0, count: 6, every: 0.8), duration: 15).isEmpty)
+    }
+
+    @Test("A long burst doesn't swallow a nearby separate click")
+    func burstKeepsSegmentsApart() {
+        let burst = (0..<8).map { click(at: 2.0 + Double($0) * 0.4) }
+        let out = AutoZoomDetector.detect(events: burst + [click(at: 8.0, x: 0.9, y: 0.9)], duration: 20)
+        #expect(out.count == 1)
+        #expect(out[0].zoomLevel == 2.0)
+    }
+
+    @Test("Clicks recorded twice by the telemetry count once")
+    func duplicateClicksCountOnce() {
+        let out = AutoZoomDetector.detect(
+            events: [click(at: 3.0), click(at: 3.0), click(at: 4.0), click(at: 4.001)],
+            duration: 15
+        )
+        #expect(out.count == 1)
+        #expect(out[0].zoomLevel == 1.5)
+    }
+
+    @Test("Clicking a field and then typing zooms through the end of the typing", arguments: [1, 2])
+    func clickThenType(clicks: Int) {
+        let clickEvents = (0..<clicks).map { click(at: 5.0 + Double($0) * 0.2, x: 0.4, y: 0.6) }
+        let out = AutoZoomDetector.detect(events: clickEvents + keys(from: 6.0, count: 20, every: 0.25), duration: 20)
+        #expect(out.count == 1)
+        #expect(out[0].startTime == 4.0)
+        #expect(abs(out[0].endTime - (6.0 + 19 * 0.25 + 0.8)) < 1e-9)
+    }
+
+    @Test("Typing doesn't glue onto unrelated clicks before and after it")
+    func typingStaysSeparateFromUnrelatedClicks() {
+        let events = [click(at: 2.0, x: 0.1, y: 0.1)]
+            + keys(from: 4.5, count: 8, every: 0.25, x: 0.5, y: 0.5)
+            + [click(at: 7.5, x: 0.9, y: 0.9)]
+        let out = AutoZoomDetector.detect(events: events, duration: 20)
+        #expect(!out.isEmpty)
+        #expect(out.allSatisfy { $0.duration < 5 })
+    }
+
+    @Test("The click that focused the field sets where a typing zoom looks")
+    func typingFocusesOnTheClickedField() {
+        let events = [click(at: 5.0, x: 0.2, y: 0.8)] + keys(from: 6.0, count: 8, every: 0.25, x: 0.6, y: 0.3)
+        let out = AutoZoomDetector.detect(events: events, duration: 20)
+        #expect(out.count == 1)
+        if case .manual(let x, let y) = out[0].focusMode {
+            #expect(abs(x - 0.2) < 1e-9 && abs(y - 0.8) < 1e-9)
+        }
+    }
 }
